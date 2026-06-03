@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.ce.wcaquino.taskbackend.messaging.TaskAuditProducer;
 import br.ce.wcaquino.taskbackend.model.Task;
 import br.ce.wcaquino.taskbackend.repo.TaskRepo;
 import br.ce.wcaquino.taskbackend.utils.DateUtils;
@@ -25,6 +26,9 @@ public class TaskController {
 
 	@Autowired
 	private TaskRepo todoRepo;
+
+	@Autowired
+	private TaskAuditProducer auditProducer;
 	
 	@GetMapping
 	public List<Task> findAll() {
@@ -43,6 +47,7 @@ public class TaskController {
 			throw new ValidationException("Due date must not be in past");
 		}
 		Task saved = todoRepo.save(todo);
+		auditProducer.taskCreated(saved.getId(), saved.getTask());
 		return new ResponseEntity<Task>(saved, HttpStatus.CREATED);
 	}
 	 
@@ -50,5 +55,6 @@ public class TaskController {
 	@ResponseStatus(code = HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable Long id) {
 		todoRepo.deleteById(id);
+		auditProducer.taskDeleted(id);
 	}
 }

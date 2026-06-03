@@ -22,3 +22,13 @@ services:
     ports:
       - "6379:6379"
     command: redis-server --save 60 1
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # porta da aplicação (AMQP)
+      - "15672:15672"  # painel web de administração
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
