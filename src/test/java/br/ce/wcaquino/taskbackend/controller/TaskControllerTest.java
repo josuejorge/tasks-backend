@@ -10,15 +10,19 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import br.ce.wcaquino.taskbackend.messaging.TaskAuditProducer;
 import br.ce.wcaquino.taskbackend.model.Task;
 import br.ce.wcaquino.taskbackend.repo.TaskRepo;
 import br.ce.wcaquino.taskbackend.utils.ValidationException;
 
 public class TaskControllerTest {
-	
+
 	@Mock
 	private TaskRepo taskRepo;
-	
+
+	@Mock
+	private TaskAuditProducer auditProducer;
+
 	@InjectMocks
 	private TaskController controller;
 	
@@ -69,8 +73,13 @@ public class TaskControllerTest {
 		Task todo = new Task();
 		todo.setTask("Descricao");
 		todo.setDueDate(LocalDate.now());
+
+		// sem isso, todoRepo.save() retorna null e saved.getId() explode com NPE
+		Mockito.when(taskRepo.save(todo)).thenReturn(todo);
+
 		controller.save(todo);
-		
+
 		Mockito.verify(taskRepo).save(todo);
+		Mockito.verify(auditProducer).taskCreated(todo.getId(), todo.getTask());
 	}
 }
