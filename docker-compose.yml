@@ -25,7 +25,7 @@ services:
     container_name: keycloak-prod
     image: quay.io/keycloak/keycloak:23.0
     ports:
-      - "8180:8080"
+      - "8182:8080"   # porta diferente para nao conflitar com keycloak de dev (8180)
     networks:
       - prod_net_back
       - prod_net_front
@@ -80,7 +80,7 @@ services:
       - KEYCLOAK_HOST=keycloak
       - KEYCLOAK_PORT=8080
       - KEYCLOAK_BROWSER_HOST=localhost
-      - KEYCLOAK_BROWSER_PORT=8180
+      - KEYCLOAK_BROWSER_PORT=8182
     depends_on:
       - backend
       - keycloak
