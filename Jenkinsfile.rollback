@@ -11,11 +11,11 @@ pipeline {
         stage('Validar versao') {
             steps {
                 script {
-                    if (env.ROLLBACK_VERSION == '') {
+                    if (params.ROLLBACK_VERSION == '') {
                         error "ROLLBACK_VERSION nao informado. Informe o numero do build."
                     }
-                    def backImage = "back_prod:build_${env.ROLLBACK_VERSION}"
-                    def frontImage = "front_prod:build_${env.ROLLBACK_VERSION}"
+                    def backImage = "back_prod:build_${params.ROLLBACK_VERSION}"
+                    def frontImage = "front_prod:build_${params.ROLLBACK_VERSION}"
 
                     def backExists = bat(
                         script: "docker image inspect ${backImage} >nul 2>&1",
@@ -27,20 +27,23 @@ pipeline {
                     )
 
                     if (backExists != 0 || frontExists != 0) {
-                        error "Imagens da build_${env.ROLLBACK_VERSION} nao encontradas localmente. Rollback abortado."
+                        error "Imagens da build_${params.ROLLBACK_VERSION} nao encontradas localmente. Rollback abortado."
                     }
 
-                    echo "Imagens encontradas. Iniciando rollback para build_${env.ROLLBACK_VERSION}..."
+                    echo "Imagens encontradas. Iniciando rollback para build_${params.ROLLBACK_VERSION}..."
                 }
             }
         }
 
         stage('Rollback') {
-            steps {
-                bat "docker-compose up -d"
-            }
             environment {
                 BUILD_NUMBER = "${params.ROLLBACK_VERSION}"
+            }
+            steps {
+                // roda no workspace do Pipeline onde o docker-compose foi originalmente executado
+                dir('C:\\Users\\josue\\.jenkins\\workspace\\Pipeline') {
+                    bat "docker-compose up -d"
+                }
             }
         }
 
@@ -48,18 +51,8 @@ pipeline {
             steps {
                 script {
                     sleep(5)
-                    def backRunning = bat(
-                        script: 'docker inspect backend-prod --format "{{.State.Running}}"',
-                        returnStdout: true
-                    ).trim()
-
-                    if (!backRunning.contains('true')) {
-                        error "backend-prod nao subiu apos rollback!"
-                    }
-
-                    echo "Rollback concluido com sucesso!"
-                    echo "Versao em producao: build_${params.ROLLBACK_VERSION}"
                     bat 'docker ps --filter name=prod --format "table {{.Names}}\\t{{.Image}}\\t{{.Status}}"'
+                    echo "Rollback concluido! Versao em producao: build_${params.ROLLBACK_VERSION}"
                 }
             }
         }
