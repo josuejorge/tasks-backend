@@ -12,6 +12,15 @@ services:
       - prod_postgresql:/var/lib/postgresql
       - prod_postgresql_data:/var/lib/postgresql/data
 
+  rabbitmq:
+    container_name: rabbitmq-prod
+    image: rabbitmq:3.13-management
+    networks:
+      - prod_net_back
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
   backend:
     container_name: backend-prod
     image: back_prod:build_${BUILD_NUMBER}
@@ -31,14 +40,16 @@ services:
       - DATABASE_USER=postgres
       - DATABASE_PASSWD=passwd
       - DATABASE_UPDATE=update
+      - RABBITMQ_HOST=rabbitmq
     depends_on:
       - db
+      - rabbitmq
 
   frontend:
     container_name: frontend-prod
     image: front_prod:build_${BUILD_NUMBER}
     build:
-        context: ../DeployFront
+        context: ../tasks-frontend
         args:
           - WAR_FILE=target/tasks.war
           - CONTEXT=tasks
@@ -50,8 +61,8 @@ services:
       - BACKEND_HOST=backend
       - BACKEND_PORT=8080
       - APP_VERSION=build_${BUILD_NUMBER}
-    #depends_on:
-    #  - backend
+    depends_on:
+      - backend
 
 networks:
   prod_net_front:
