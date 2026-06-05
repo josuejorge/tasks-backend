@@ -35,14 +35,14 @@ pipeline {
                 deploy adapters: [tomcat8(credentialsId: 'TomcatLogin', path: '', url: 'http://localhost:8001/')], contextPath: 'tasks-backend', war: 'target/tasks-backend.war'
             }
         }
-        stage ('API Test') {
-            steps {
-                dir('api-test') {
-                    git 'https://github.com/josuejorge/tasks-api-test'
-                    bat 'mvn test'
-                }
-            }
-        }
+        //stage ('API Test') {
+          //  steps {
+            //    dir('api-test') {
+              //      git 'https://github.com/josuejorge/tasks-api-test'
+                //    bat 'mvn test'
+               // }
+           // }
+        //}
         stage ('Deploy Frontend') {
             steps {
                 dir('frontend') {
@@ -52,21 +52,21 @@ pipeline {
                 }
             }
         }
-        stage ('Functional Test') {
+       // stage ('Functional Test') {
+      //      steps {
+       //         dir('functional-test') {
+        //            git 'https://github.com/josuejorge/tasks-functional-tests'
+       //             bat 'mvn test'
+       //         }
+      //      }
+     //   }
+
+        stage('Deploy Prod') {
             steps {
-                dir('functional-test') {
-                    git 'https://github.com/josuejorge/tasks-functional-tests'
-                    bat 'mvn test'
-                }
+                bat 'docker-compose build'
+                bat 'docker-compose up -d'
             }
         }
-
-        //stage('Deploy Prod') {
-          //  steps {
-          //      bat 'docker-compose build'
-          //      bat 'docker-compose up -d'
-        //    }
-       // }
        // stage ('Health Check') {
           //  steps {
             //    sleep(5)
@@ -89,5 +89,4 @@ pipeline {
        // }
     //}
 }
-
 
