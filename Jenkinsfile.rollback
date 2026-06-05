@@ -1,0 +1,75 @@
+pipeline {
+    agent any
+    parameters {
+        string(
+            name: 'ROLLBACK_VERSION',
+            defaultValue: '',
+            description: 'Numero do build para rollback. Ex: 4'
+        )
+    }
+    stages {
+        stage('Validar versao') {
+            steps {
+                script {
+                    if (env.ROLLBACK_VERSION == '') {
+                        error "ROLLBACK_VERSION nao informado. Informe o numero do build."
+                    }
+                    def backImage = "back_prod:build_${env.ROLLBACK_VERSION}"
+                    def frontImage = "front_prod:build_${env.ROLLBACK_VERSION}"
+
+                    def backExists = bat(
+                        script: "docker image inspect ${backImage} >nul 2>&1",
+                        returnStatus: true
+                    )
+                    def frontExists = bat(
+                        script: "docker image inspect ${frontImage} >nul 2>&1",
+                        returnStatus: true
+                    )
+
+                    if (backExists != 0 || frontExists != 0) {
+                        error "Imagens da build_${env.ROLLBACK_VERSION} nao encontradas localmente. Rollback abortado."
+                    }
+
+                    echo "Imagens encontradas. Iniciando rollback para build_${env.ROLLBACK_VERSION}..."
+                }
+            }
+        }
+
+        stage('Rollback') {
+            steps {
+                bat "docker-compose up -d"
+            }
+            environment {
+                BUILD_NUMBER = "${params.ROLLBACK_VERSION}"
+            }
+        }
+
+        stage('Verificar') {
+            steps {
+                script {
+                    sleep(5)
+                    def backRunning = bat(
+                        script: 'docker inspect backend-prod --format "{{.State.Running}}"',
+                        returnStdout: true
+                    ).trim()
+
+                    if (!backRunning.contains('true')) {
+                        error "backend-prod nao subiu apos rollback!"
+                    }
+
+                    echo "Rollback concluido com sucesso!"
+                    echo "Versao em producao: build_${params.ROLLBACK_VERSION}"
+                    bat 'docker ps --filter name=prod --format "table {{.Names}}\\t{{.Image}}\\t{{.Status}}"'
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo "Rollback para build_${params.ROLLBACK_VERSION} realizado com sucesso!"
+        }
+        failure {
+            echo "Rollback FALHOU. Verifique os logs acima."
+        }
+    }
+}
