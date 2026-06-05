@@ -32,6 +32,8 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_URL: http://localhost:8182
+      KC_HOSTNAME_ADMIN_URL: http://localhost:8182
     command: start-dev
 
   backend:
