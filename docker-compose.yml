@@ -21,6 +21,19 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
 
+  keycloak:
+    container_name: keycloak-prod
+    image: quay.io/keycloak/keycloak:23.0
+    ports:
+      - "8180:8080"
+    networks:
+      - prod_net_back
+      - prod_net_front
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev
+
   backend:
     container_name: backend-prod
     image: back_prod:build_${BUILD_NUMBER}
@@ -41,9 +54,12 @@ services:
       - DATABASE_PASSWD=passwd
       - DATABASE_UPDATE=update
       - RABBITMQ_HOST=rabbitmq
+      - KEYCLOAK_HOST=keycloak
+      - KEYCLOAK_PORT=8080
     depends_on:
       - db
       - rabbitmq
+      - keycloak
 
   frontend:
     container_name: frontend-prod
@@ -61,8 +77,13 @@ services:
       - BACKEND_HOST=backend
       - BACKEND_PORT=8080
       - APP_VERSION=build_${BUILD_NUMBER}
+      - KEYCLOAK_HOST=keycloak
+      - KEYCLOAK_PORT=8080
+      - KEYCLOAK_BROWSER_HOST=localhost
+      - KEYCLOAK_BROWSER_PORT=8180
     depends_on:
       - backend
+      - keycloak
 
 networks:
   prod_net_front:
