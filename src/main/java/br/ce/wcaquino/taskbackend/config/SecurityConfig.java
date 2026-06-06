@@ -38,7 +38,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 				// Swagger UI: recursos estaticos liberados (browser nao envia token)
 				// a protecao por role fica nos endpoints da API em si
-				.antMatchers("/swagger-ui/**", "/v2/api-docs", "/swagger-resources/**", "/webjars/**").permitAll()
+				// Springfox 3 com OAS_30 serve o JSON em /v3/api-docs
+				.antMatchers("/swagger-ui/**", "/swagger-ui.html",
+					"/v2/api-docs", "/v3/api-docs", "/v3/api-docs/**",
+					"/swagger-resources/**", "/webjars/**").permitAll()
 
 				// endpoint de debug: qualquer JWT valido
 				.antMatchers("/debug/me").authenticated()
