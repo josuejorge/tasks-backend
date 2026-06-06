@@ -36,6 +36,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 				.antMatchers("/actuator/**").permitAll()
 				.antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+				// endpoint de debug: qualquer JWT valido
+				.antMatchers("/debug/me").authenticated()
+
 				// Swagger: ADMIN e QA
 				.antMatchers("/swagger-ui/**", "/v2/api-docs", "/swagger-resources/**", "/webjars/**")
 					.hasAnyRole("ADMIN", "QA")
