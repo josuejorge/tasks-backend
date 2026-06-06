@@ -36,12 +36,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 				.antMatchers("/actuator/**").permitAll()
 				.antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+				// Swagger UI: recursos estaticos liberados (browser nao envia token)
+				// a protecao por role fica nos endpoints da API em si
+				.antMatchers("/swagger-ui/**", "/v2/api-docs", "/swagger-resources/**", "/webjars/**").permitAll()
+
 				// endpoint de debug: qualquer JWT valido
 				.antMatchers("/debug/me").authenticated()
-
-				// Swagger: ADMIN e QA
-				.antMatchers("/swagger-ui/**", "/v2/api-docs", "/swagger-resources/**", "/webjars/**")
-					.hasAnyRole("ADMIN", "QA")
 
 				// Tasks: ADMIN e USER
 				.antMatchers("/todo/**").hasAnyRole("ADMIN", "USER")
