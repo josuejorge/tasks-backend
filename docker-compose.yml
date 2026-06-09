@@ -85,10 +85,23 @@ services:
       - KEYCLOAK_PORT=8080
       - KEYCLOAK_BROWSER_HOST=localhost
       - KEYCLOAK_BROWSER_PORT=8182
-      - APP_BASE_URL=http://localhost:9999
+      - APP_BASE_URL=http://localhost
     depends_on:
       - backend
       - keycloak
+
+  nginx:
+    container_name: nginx-prod
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - prod_net_front
+    depends_on:
+      - frontend
+      - backend
 
 networks:
   prod_net_front:
