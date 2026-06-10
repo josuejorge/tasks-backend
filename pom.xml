@@ -56,8 +56,24 @@
 
 		<dependency>
     		<groupId>org.mockito</groupId>
-    		<artifactId>mockito-core</artifactId>    	
+    		<artifactId>mockito-core</artifactId>
     		<scope>test</scope>
+	</dependency>
+
+	<!-- @DataJpaTest, SpringRunner, etc. -->
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-test</artifactId>
+		<scope>test</scope>
+	</dependency>
+
+	<!-- Testcontainers: sobe Postgres real e descartavel nos testes.
+	     Versao recente traz docker-java novo, compativel com Docker 29 (API 1.54) -->
+	<dependency>
+		<groupId>org.testcontainers</groupId>
+		<artifactId>postgresql</artifactId>
+		<version>1.20.6</version>
+		<scope>test</scope>
 	</dependency>
 
 	<dependency>
@@ -117,6 +133,20 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+
+			<!-- Roda os testes de integracao (*IT) na fase verify, separados dos unitarios -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 
 			<plugin>
