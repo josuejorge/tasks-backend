@@ -3,6 +3,7 @@ services:
   db:
     container_name: pg-prod
     image: postgres:9.6
+    restart: unless-stopped
     networks:
       - prod_net_back
     environment:
@@ -15,6 +16,7 @@ services:
   rabbitmq:
     container_name: rabbitmq-prod
     image: rabbitmq:3.13-management
+    restart: unless-stopped
     networks:
       - prod_net_back
     environment:
@@ -24,6 +26,7 @@ services:
   keycloak:
     container_name: keycloak-prod
     image: quay.io/keycloak/keycloak:23.0
+    restart: unless-stopped
     ports:
       - "8182:8080"   # porta diferente para nao conflitar com keycloak de dev (8180)
     networks:
@@ -41,6 +44,7 @@ services:
   backend:
     container_name: backend-prod
     image: back_prod:build_${BUILD_NUMBER}
+    restart: unless-stopped
     build:
       context: .
       args:
@@ -68,6 +72,7 @@ services:
   frontend:
     container_name: frontend-prod
     image: front_prod:build_${BUILD_NUMBER}
+    restart: unless-stopped
     build:
         context: frontend
         args:
@@ -93,6 +98,7 @@ services:
   nginx:
     container_name: nginx-prod
     image: nginx:1.27-alpine
+    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
