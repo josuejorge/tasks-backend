@@ -154,6 +154,8 @@ mvn test jacoco:report
 
 | Serviço | Dev | Prod |
 |---|---|---|
+| Jenkins | 8000 | — |
+| Tomcat | 8001 | — |
 | Backend | 8001 | via Nginx :80 |
 | Frontend | — | 9999 / Nginx :80 |
 | PostgreSQL | 5433 | 5432 (interno) |
@@ -163,3 +165,237 @@ mvn test jacoco:report
 | Prometheus | 9090 | 9090 |
 | Grafana | 3000 | 3000 |
 | Nginx | — | 80 |
+
+---
+
+## Guia completo do laboratório
+
+Passo a passo para subir o ambiente completo do zero.
+
+### 1. Abrir o Docker Desktop
+
+O Docker Desktop precisa estar rodando antes de qualquer outro passo.
+
+Para liberar memória do WSL caso esteja pesando o ambiente:
+
+```bash
+wsl --shutdown
+```
+
+### 2. Subir o Jenkins
+
+```bash
+java -jar jenkins.war --httpPort=8000
+```
+
+Acesse em `http://localhost:8000`
+
+### 3. Subir o Tomcat
+
+Acesse a pasta `bin/` do Tomcat e execute o `startup.sh` (Linux/Mac) ou `startup.bat` (Windows).
+
+Após subir, acesse `http://localhost:8001`
+
+### 4. Subir a infraestrutura (dev)
+
+```bash
+cd infra/observability
+docker compose up -d
+```
+
+Isso sobe: **Prometheus**, **Grafana**, **Redis**, **RabbitMQ** e **Keycloak** (dev).
+
+Se o PostgreSQL de dev não subir junto, inicie manualmente:
+
+```bash
+docker start pg-tasks
+```
+
+### 5. Rodar o pipeline
+
+No Jenkins (`http://localhost:8000`), acesse o job **Pipeline** e clique em **Build Now**.
+
+O pipeline executa automaticamente:
+1. Build do backend (`mvn clean package`)
+2. Testes unitários (`mvn test`)
+3. Deploy do WAR no Tomcat
+4. Clone e deploy do frontend
+5. `docker-compose build && up -d` (produção)
+
+### 6. Acessar a aplicação
+
+| Ambiente | URL |
+|---|---|
+| **Prod (com Nginx)** | `http://localhost/tasks/` |
+| **Prod (sem Nginx)** | `http://localhost:9999/tasks/` |
+| **Dev (Tomcat)** | `http://localhost:8001/tasks-backend` |
+
+### Subir uma versão já buildada (sem rodar o pipeline)
+
+Para subir rapidamente uma versão que já foi buildada anteriormente:
+
+```bash
+cd ~/.jenkins/workspace/Pipeline
+BUILD_NUMBER=<numero_do_build> docker compose up -d
+```
+
+### Reiniciar containers de produção
+
+Se algum container caiu, reinicie na ordem correta:
+
+```bash
+# Primeiro os serviços base, depois o backend, e por último frontend e nginx
+docker start pg-prod rabbitmq-prod keycloak-prod
+sleep 5
+docker start backend-prod
+sleep 5
+docker start frontend-prod nginx-prod
+```
+
+> **Nota:** O Nginx depende do frontend/backend já existirem na rede. Se ele reclamar de `host not found in upstream`, um `docker restart nginx-prod` resolve.
+
+### Verificar versão em produção
+
+```bash
+docker inspect backend-prod --format "{{.Config.Image}}"
+docker inspect frontend-prod --format "{{.Config.Image}}"
+```
+
+---
+
+## Configuração do Keycloak
+
+O Keycloak gerencia autenticação OAuth2/JWT. O fluxo de login:
+
+```
+Acessa localhost/tasks → Redireciona para Keycloak → Login
+→ Keycloak gera JWT → Redireciona de volta → Frontend usa JWT para chamar o backend
+→ Backend valida JWT → Retorna dados
+```
+
+| Ambiente | URL |
+|---|---|
+| Dev | `http://localhost:8180` |
+| Prod | `http://localhost:8182` |
+
+### Configurar o realm (necessário na primeira vez)
+
+1. **Criar o Realm** — Menu superior esquerdo → Create realm → Nome: `tasks-realm`
+2. **Criar o Client** — Clients → Create client → Client ID: `tasks-frontend` → Client authentication: OFF → Valid redirect URIs: `http://localhost:9999/tasks/*` → Web origins: `http://localhost:9999`
+3. **Criar um usuário** — Users → Add user → Definir username → Aba Credentials → Set password → Temporary: OFF
+
+---
+
+## Observabilidade
+
+### Endpoints do Actuator
+
+| Endpoint | URL |
+|---|---|
+| Health | `http://localhost:8001/tasks-backend/actuator/health` |
+| Metrics | `http://localhost:8001/tasks-backend/actuator/metrics` |
+| Prometheus | `http://localhost:8001/tasks-backend/actuator/prometheus` |
+
+### Prometheus
+
+Acesse `http://localhost:9090`
+
+O scrape está configurado em `infra/observability/prometheus.yml` para coletar métricas do Spring Actuator.
+
+### Grafana
+
+Acesse `http://localhost:3000`
+
+**Configurar data source:** Connections → Data Sources → Add Data Source → Prometheus → URL: `http://prometheus:9090`
+
+Exemplo de query: `sum(jvm_memory_max_bytes)`
+
+---
+
+## Swagger
+
+| Recurso | URL |
+|---|---|
+| Swagger UI | `http://localhost:8001/tasks-backend/swagger-ui.html` |
+| API Docs (JSON) | `http://localhost:8001/tasks-backend/v3/api-docs` |
+
+---
+
+## Redis (CLI)
+
+```bash
+# Conectar no container
+docker exec -it redis redis-cli
+
+# Listar chaves gravadas pelo Spring Cache
+keys *
+
+# Ver o valor de uma chave
+get courses::"java"
+```
+
+---
+
+## RabbitMQ
+
+Painel de administração: `http://localhost:15672`
+
+### Publicar evento de auditoria manualmente
+
+Payload:
+```json
+{
+  "action": "TASK_CREATED",
+  "taskId": 999,
+  "taskDescription": "Task publicada pelo painel",
+  "occurredAt": "2026-06-03T20:00:00"
+}
+```
+
+Header obrigatório:
+```
+__TypeId__ = br.ce.wcaquino.taskbackend.messaging.TaskAuditEvent
+```
+
+Consultar logs de auditoria no banco:
+```sql
+SELECT id, action, task_id, task_description, occurred_at
+FROM audit_log ORDER BY occurred_at DESC;
+```
+
+---
+
+## Testes de integração (Testcontainers)
+
+Precisa do Docker rodando. O Testcontainers sobe um PostgreSQL descartável automaticamente:
+
+```bash
+mvn verify
+```
+
+---
+
+## Selenium Grid (para testes funcionais)
+
+```bash
+# Subir o Hub
+java -jar selenium-server-standalone-3.141.59.jar -role hub
+
+# Subir um Node (em outro terminal)
+java -jar selenium-server-standalone-3.141.59.jar -role node -hub http://localhost:4444
+
+# Abrir mais nodes: repetir o comando acima em novos terminais
+```
+
+Console do Grid: `http://localhost:4444/console`
+
+---
+
+## Repositórios relacionados
+
+| Repositório | Descrição |
+|---|---|
+| [tasks-backend](https://github.com/josuejorge/tasks-backend) | Backend Spring Boot |
+| [tasks-frontend](https://github.com/josuejorge/tasks-frontend) | Frontend Thymeleaf |
+| [tasks-api-test](https://github.com/josuejorge/tasks-api-test) | Testes automatizados de API |
+| [tasks-functional-tests](https://github.com/josuejorge/tasks-functional-tests) | Testes funcionais E2E (Selenium)
